@@ -2,7 +2,9 @@ import 'package:chat_bot_app/view/splash/splash.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 
-const String googleAPIKey = 'place your api key here';
+
+const String googleAPIKey = 'PLACE-YOUR-API-KEY HERE';
+const logoUrl = 'assets/log.jpg';
 
 void main() {
   Gemini.init(apiKey: googleAPIKey);
@@ -17,8 +19,10 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    imageLoading(context);
     return MaterialApp(
       title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: false,
@@ -27,3 +31,9 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+void imageLoading(BuildContext context) async {
+  ImageProvider logo = const AssetImage(logoUrl);
+  await precacheImage(logo, context);
+}
+

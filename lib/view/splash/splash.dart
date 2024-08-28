@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:chat_bot_app/main.dart';
 import 'package:flutter/material.dart';
 import '../home/home.dart';
 
@@ -14,8 +15,8 @@ class _SplashState extends State<Splash> {
   void initState() {
     super.initState();
     Timer(
-      const Duration(seconds: 2),
-          () => Navigator.push(
+      const Duration(seconds: 3),
+      () => Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const HomePage()),
       ),
@@ -25,15 +26,20 @@ class _SplashState extends State<Splash> {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-        body: Center(
-          child: Text(
-            'CHAT BOT',
-            style: TextStyle(
-              fontSize: 24,
-              color: Colors.black,
-            ),
+      backgroundColor: Colors.blueGrey,
+      body: SafeArea(
+        child: Center(
+          child: ClipOval(
+            child: Image(
+                height: 200,
+                width: 200,
+                fit: BoxFit.contain,
+                image: AssetImage(logoUrl)),
           ),
-        )
+        ),
+      ),
     );
   }
 }
+
+

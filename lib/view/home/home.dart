@@ -1,7 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:dash_chat_2/dash_chat_2.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:image_picker/image_picker.dart';
@@ -16,16 +15,17 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List<ChatMessage> messages = [];
   final gemini = Gemini.instance;
-  ChatUser currentUser = ChatUser(
+  final ChatUser currentUser = ChatUser(
     id: '0',
-    firstName: 'user',
+    firstName: 'User',
     profileImage: 'https://i.pravatar.cc/1000?img=65',
   );
-  ChatUser geminiUser = ChatUser(
+  final ChatUser geminiUser = ChatUser(
     id: '1',
-    firstName: 'gemini',
+    firstName: 'Gemini',
     profileImage: 'assets/gemi.png',
   );
+  XFile? _selectedImage;
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +33,12 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         centerTitle: true,
         automaticallyImplyLeading: false,
+        backgroundColor: Colors.cyan
+
+        ,
         title: const Text(
-          'ChatBot',
-          style: TextStyle(fontSize: 22),
+          'Chat with the support team',
+          style: TextStyle(fontSize: 20),
         ),
       ),
       body: SafeArea(
@@ -47,53 +50,94 @@ class _HomePageState extends State<HomePage> {
   Widget _buildUI() {
     return DashChat(
       currentUser: currentUser,
+
       inputOptions: InputOptions(
+
         trailing: [
           IconButton(
-            onPressed: _sentMediaMessage,
+            onPressed: _pickImage,
             icon: const Icon(Icons.image),
           )
         ],
       ),
-      onSend: _sendMessage,
+      onSend: _handleSend,
       messages: messages,
     );
   }
 
-  void _sendMessage(ChatMessage chatMessage) {
+  // Function to handle sending both text and images
+  void _handleSend(ChatMessage chatMessage) {
+    if (_selectedImage != null) {
+      _sendMediaMessage(chatMessage.text, _selectedImage!);
+      _selectedImage = null;  // Reset after sending
+    } else {
+      _sendTextMessage(chatMessage);
+    }
+  }
+
+  // Function to pick an image and then let the user input a description
+  void _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    _selectedImage = await picker.pickImage(source: ImageSource.camera);
+  }
+
+  // Function to send text-only messages
+  void _sendTextMessage(ChatMessage chatMessage) {
+    _addMessage(chatMessage);
+    _processMessage(chatMessage.text);
+  }
+
+  // Function to send text with images
+  void _sendMediaMessage(String text, XFile file) {
+    final ChatMessage chatMessage = ChatMessage(
+      user: currentUser,
+      createdAt: DateTime.now(),
+      text: text.isNotEmpty ? text : "[Image]",
+      medias: [
+        ChatMedia(
+          url: file.path,
+          fileName: "",
+          type: MediaType.image,
+        ),
+      ],
+    );
+    _addMessage(chatMessage);
+    _processMessage(text, file);
+  }
+
+  // Function to add a message to the chat
+  void _addMessage(ChatMessage chatMessage) {
     setState(() {
       messages = [chatMessage, ...messages];
     });
+  }
 
+  // Function to process the message, optionally with an image
+  void _processMessage(String text, [XFile? file]) async {
     try {
-      //getting only text from chatmessage
-      String question = chatMessage.text;
-
-      // this is for getting images its optional field
+      String question = text.isNotEmpty ? text : "Image attached";
       List<Uint8List>? images;
-      if (chatMessage.medias?.isNotEmpty ?? false) {
-        images = [File(chatMessage.medias!.first.url).readAsBytesSync()];
+
+      if (file != null) {
+        images = [File(file.path).readAsBytesSync()];
       }
-      //listening to response continuously (streaming)
-      //here images is optional if you dont sent it will not count it
+
+      // Listening to the response continuously (streaming)
       gemini.streamGenerateContent(question, images: images).listen((event) {
         ChatMessage? lastMessage = messages.firstOrNull;
-        //checking if last message is from gemini is not null then we are continuously
-        //in the previous message
+
+        String response = event.content?.parts
+            ?.fold("", (previous, current) => "$previous ${current.text}") ??
+            "";
+
         if (lastMessage != null && lastMessage.user == geminiUser) {
           lastMessage = messages.removeAt(0);
-          String response = event.content?.parts?.fold(
-                  "", (previous, element) => "$previous ${element.text}") ??
-              "";
           lastMessage.text += response;
           setState(() {
             messages = [lastMessage!, ...messages];
           });
         } else {
-          String response = event.content?.parts?.fold(
-                  "", (previous, current) => "$previous ${current.text}") ??
-              "";
-          ChatMessage message = ChatMessage(
+          final ChatMessage message = ChatMessage(
             user: geminiUser,
             createdAt: DateTime.now(),
             text: response,
@@ -104,46 +148,9 @@ class _HomePageState extends State<HomePage> {
         }
       });
     } catch (e) {
-      print(e.toString());
-    }
-  }
-
-  //for picking media pictures
-
-  void _sentMediaMessage() async {
-    ImagePicker picker = ImagePicker();
-    XFile? file = await picker.pickImage(source: ImageSource.camera);
-
-    if (file != null) {
-      ChatMessage chatMessage = ChatMessage(
-        user: currentUser,
-        createdAt: DateTime.now(),
-        text: '',
-        medias: [
-          ChatMedia(
-            url: file.path,
-            fileName: "",
-            type: MediaType.image,
-          ),
-        ],
-      );
-
-      _sendMessage(chatMessage);
+      if (kDebugMode) {
+        print(e.toString());
+      }
     }
   }
 }
-
-// ElevatedButton(
-// onPressed: () async {
-// try {
-// await getResponse().then((e) {
-// print('here is the response that you printed');
-// print(e.toString());
-// });
-// } catch (e) {
-// print('here is the error i am getting ');
-// print(e.toString());
-// }
-// },
-// child: const Text('Generate'),
-// ),
